@@ -1,0 +1,26 @@
+{
+  "name": "helix",
+  "version": "1.0.0",
+  "main": "controller/src/server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node controller/src/server.js",
+    "dev": "nodemon controller/src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sakshamdhyani/Helix.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sakshamdhyani/Helix/issues"
+  },
+  "homepage": "https://github.com/sakshamdhyani/Helix#readme",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
