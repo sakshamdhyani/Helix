@@ -81,7 +81,7 @@ class Orchestrator {
             console.log('----------------------------------------');
 
             const serviceContainers = containers.filter(
-                container => container.image === service.image && container.state === 'running'
+                container => container.labels?.service === service.name && container.state === 'running'
             );
 
             const actualReplicas = serviceContainers.length;
@@ -120,7 +120,7 @@ class Orchestrator {
             }
 
             const exitedContainers = containers.filter(
-                container => container.image === service.image && container.state === 'exited'
+                container => container.labels?.service === service.name && container.state === 'exited'
             );
 
             if (exitedContainers.length > 0) {
