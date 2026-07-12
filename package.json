@@ -20,6 +20,7 @@
   "homepage": "https://github.com/sakshamdhyani/Helix#readme",
   "description": "",
   "dependencies": {
+    "dockerode": "^5.0.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1"
   }
