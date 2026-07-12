@@ -1,0 +1,149 @@
+const DockerService = require('../services/docker.service');
+const ClusterState = require('./cluster-state');
+const clusterConfig = require('../config/cluster.config');
+
+class Orchestrator {
+    constructor() {
+        this.dockerService = new DockerService();
+        this.clusterState = new ClusterState();
+    }
+
+    async connect() {
+        console.log('Connecting to Docker...\n');
+        await this.dockerService.connect();
+    }
+
+    async syncClusterState() {
+        const containers = await this.dockerService.listContainers();
+        this.updateClusterState(containers);
+        this.printClusterState();
+    }
+
+    updateClusterState(containers) {
+        for (const container of containers) {
+            this.clusterState.setContainer(container);
+        }
+    }
+
+    printClusterState() {
+        const containers = this.clusterState.getAllContainers();
+
+        console.log('\n=================================');
+        console.log('Current Cluster State');
+        console.log('=================================');
+
+        if (containers.length === 0) {
+            console.log('No containers in cluster.\n');
+            return;
+        }
+
+        containers.forEach((container, index) => {
+            console.log(`\nContainer #${index + 1}`);
+            console.log('------------------------------');
+            console.log(`Name   : ${container.name}`);
+            console.log(`ID     : ${container.id.substring(0, 12)}`);
+            console.log(`Image  : ${container.image}`);
+            console.log(`State  : ${container.state}`);
+            console.log(`Status : ${container.status}`);
+        });
+
+        console.log('\n=================================\n');
+    }
+
+    async reconcile() {
+        console.log('\n=================================');
+        console.log('Starting Reconciliation');
+        console.log('=================================\n');
+
+        const containers = this.clusterState.getAllContainers();
+        const services = clusterConfig.services;
+
+        console.log(`Total Discovered Containers: ${containers.length}`);
+        console.log(`Configured Services: ${services.length}\n`);
+
+        for (const service of services) {
+            console.log('----------------------------------------');
+            console.log(`Checking Service: ${service.name}`);
+            console.log('----------------------------------------');
+
+            const serviceContainers = containers.filter(
+                container => container.image === service.image
+            );
+
+            const actualReplicas = serviceContainers.length;
+            const desiredReplicas = service.replicas;
+            const difference = desiredReplicas - actualReplicas;
+
+            console.log(`Image              : ${service.image}`);
+            console.log(`Desired Replicas   : ${desiredReplicas}`);
+            console.log(`Actual Replicas    : ${actualReplicas}`);
+            console.log(`Difference         : ${difference}`);
+            console.log('');
+
+            if (serviceContainers.length > 0) {
+                console.log('Existing Replicas:\n');
+                serviceContainers.forEach((container, index) => {
+                    console.log(`Replica #${index + 1}`);
+                    console.log(`   Name   : ${container.name}`);
+                    console.log(`   ID     : ${container.id.substring(0, 12)}`);
+                    console.log(`   State  : ${container.state}`);
+                    console.log(`   Status : ${container.status}`);
+                    console.log('');
+                });
+            } else {
+                console.log('⚠️  No running replicas found.\n');
+            }
+
+            if (actualReplicas === desiredReplicas) {
+                console.log('Decision: Cluster is healthy.\n');
+            } else if (actualReplicas < desiredReplicas) {
+                const replicasToCreate = desiredReplicas - actualReplicas;
+                console.log(`Decision: Need to create ${replicasToCreate} replica(s).`);
+                await this.scaleUp(service);
+            } else {
+                console.log(`Decision: Need to remove ${Math.abs(difference)} replica(s).\n`);
+            }
+        }
+
+        console.log('=================================');
+        console.log('Reconciliation Complete');
+        console.log('=================================\n');
+    }
+
+    async scaleUp(service) {
+        console.log('\nScaling Up');
+        console.log('--------------------------');
+        console.log(`Service : ${service.name}`);
+
+        const options = this.buildContainerOptions(service);
+        const container = await this.dockerService.createContainer(options);
+
+        console.log('Created Container ID:', container.id);
+    }
+
+    buildContainerOptions(service) {
+        return {
+            Image: service.image,
+            Labels: service.container.labels,
+            name: this.generateContainerName(service)
+        };
+    }
+
+    generateContainerName(service) {
+        const containers = this.clusterState.getAllContainers();
+
+        const existingNames = new Set(
+            containers.map(container => container.name)
+        );
+
+        let replicaNumber = 1;
+
+        while (existingNames.has(`${service.name}-${replicaNumber}`)) {
+            replicaNumber++;
+        }
+
+        return `${service.name}-${replicaNumber}`;
+    }
+}
+
+module.exports = Orchestrator;
