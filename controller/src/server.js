@@ -1,23 +1,34 @@
 const express = require('express');
-const app = express();
-const dotenv = require('dotenv');
-dotenv.config();
 const Orchestrator = require('./orchestrator/orchestrator');
-const port = process.env.PORT || 8000;
 
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-async function startServer() {
+const orchestrator = new Orchestrator();
 
+async function bootstrap() {
+    try {
+        console.log('=================================');
+        console.log('Starting Helix...');
+        console.log('=================================\n');
 
-    const orchestrator = new Orchestrator();
+        await orchestrator.connect();
 
-    await orchestrator.connect();
+        orchestrator.run();
 
+        console.log('\n=================================');
+        console.log('Helix initialized successfully');
+        console.log('=================================\n');
 
-    app.listen(port, () => {
-        console.log(`Server is running on port ${port}`);
-    });
+        app.listen(PORT, () => {
+            console.log(`🌐 API Server running on http://localhost:${PORT}`);
+        });
+
+    } catch (error) {
+        console.error('\nHelix failed to start');
+        console.error(error.message);
+        process.exit(1);
+    }
 }
 
-
-startServer();
+bootstrap();

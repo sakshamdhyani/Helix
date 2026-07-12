@@ -13,6 +13,19 @@ class Orchestrator {
         await this.dockerService.connect();
     }
 
+    async run() {
+        while (true) {
+            try {
+                await this.syncClusterState();
+                await this.reconcile();
+            } catch (error) {
+                console.error('Error during reconciliation loop:', error.message);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 10000));
+        }
+    }
+
     async syncClusterState() {
         const containers = await this.dockerService.listContainers();
         this.updateClusterState(containers);
@@ -91,7 +104,7 @@ class Orchestrator {
                     console.log('');
                 });
             } else {
-                console.log('⚠️  No running replicas found.\n');
+                console.log('No running replicas found.\n');
             }
 
             if (actualReplicas === desiredReplicas) {
@@ -111,7 +124,7 @@ class Orchestrator {
     }
 
     async scaleUp(service) {
-        console.log('\nScaling Up');
+        console.log('\n⬆️ Scaling Up');
         console.log('--------------------------');
         console.log(`Service : ${service.name}`);
 
