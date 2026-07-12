@@ -115,7 +115,19 @@ class Orchestrator {
                 console.log(`Decision: Need to create ${replicasToCreate} replica(s).`);
                 await this.scaleUp(service);
             } else {
-                console.log(`Decision: Need to remove ${Math.abs(difference)} replica(s).\n`);
+                const replicasToRemove = actualReplicas - desiredReplicas;
+                console.log(`Decision: Need to remove ${replicasToRemove} replica(s).\n`);
+            }
+
+            const exitedContainers = containers.filter(
+                container => container.image === service.image && container.state === 'exited'
+            );
+
+            if (exitedContainers.length > 0) {
+                for (const container of exitedContainers) {
+                    console.log(`Removing dead container: ${container.name}`);
+                    await this.dockerService.removeContainer(container.id);
+                }
             }
         }
 
