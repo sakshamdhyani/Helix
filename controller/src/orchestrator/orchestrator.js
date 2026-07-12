@@ -9,7 +9,7 @@ class Orchestrator {
     }
 
     async connect() {
-        console.log('Connecting to Docker...\n');
+        console.log('Connecting to Docker...');
         await this.dockerService.connect();
     }
 
@@ -33,6 +33,7 @@ class Orchestrator {
     }
 
     updateClusterState(containers) {
+        this.clusterState.clear();
         for (const container of containers) {
             this.clusterState.setContainer(container);
         }
@@ -124,14 +125,14 @@ class Orchestrator {
     }
 
     async scaleUp(service) {
-        console.log('\n⬆️ Scaling Up');
+        console.log('\nScaling Up');
         console.log('--------------------------');
         console.log(`Service : ${service.name}`);
 
         const options = this.buildContainerOptions(service);
         const container = await this.dockerService.createContainer(options);
 
-        console.log('Created Container ID:', container.id);
+        console.log('Created container:', container.id);
     }
 
     buildContainerOptions(service) {
