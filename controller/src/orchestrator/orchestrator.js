@@ -6,6 +6,7 @@ class Orchestrator {
     constructor() {
         this.dockerService = new DockerService();
         this.clusterState = new ClusterState();
+        this.reconciling = false;
     }
 
     async connect() {
@@ -90,76 +91,88 @@ class Orchestrator {
     }
 
     async reconcile() {
-        console.log('\n=================================');
-        console.log('Starting Reconciliation');
-        console.log('=================================\n');
-
-        const containers = this.clusterState.getAllContainers();
-        const services = clusterConfig.services;
-
-        console.log(`Total Discovered Containers: ${containers.length}`);
-        console.log(`Configured Services: ${services.length}\n`);
-
-        for (const service of services) {
-            console.log('----------------------------------------');
-            console.log(`Checking Service: ${service.name}`);
-            console.log('----------------------------------------');
-
-            const serviceContainers = containers.filter(
-                container => container.labels?.service === service.name && container.state === 'running'
-            );
-
-            const actualReplicas = serviceContainers.length;
-            const desiredReplicas = service.replicas;
-            const difference = desiredReplicas - actualReplicas;
-
-            console.log(`Image              : ${service.image}`);
-            console.log(`Desired Replicas   : ${desiredReplicas}`);
-            console.log(`Actual Replicas    : ${actualReplicas}`);
-            console.log(`Difference         : ${difference}`);
-            console.log('');
-
-            if (serviceContainers.length > 0) {
-                console.log('Existing Replicas:\n');
-                serviceContainers.forEach((container, index) => {
-                    console.log(`Replica #${index + 1}`);
-                    console.log(`   Name   : ${container.name}`);
-                    console.log(`   ID     : ${container.id.substring(0, 12)}`);
-                    console.log(`   State  : ${container.state}`);
-                    console.log(`   Status : ${container.status}`);
-                    console.log('');
-                });
-            } else {
-                console.log('No running replicas found.\n');
-            }
-
-            if (actualReplicas === desiredReplicas) {
-                console.log('Decision: Cluster is healthy.\n');
-            } else if (actualReplicas < desiredReplicas) {
-                const replicasToCreate = desiredReplicas - actualReplicas;
-                console.log(`Decision: Need to create ${replicasToCreate} replica(s).`);
-                await this.scaleUp(service);
-            } else {
-                const replicasToRemove = actualReplicas - desiredReplicas;
-                console.log(`Decision: Need to remove ${replicasToRemove} replica(s).`);
-                await this.scaleDown(service, replicasToRemove);
-            }
-
-            const exitedContainers = containers.filter(
-                container => container.labels?.service === service.name && container.state === 'exited'
-            );
-
-            if (exitedContainers.length > 0) {
-                for (const container of exitedContainers) {
-                    console.log(`Removing dead container: ${container.name}`);
-                    await this.dockerService.removeContainer(container.id);
-                }
-            }
+        if (this.reconciling) {
+            console.log('Reconciliation already in progress, skipping...');
+            return;
         }
 
-        console.log('=================================');
-        console.log('Reconciliation Complete');
-        console.log('=================================\n');
+        this.reconciling = true;
+
+        try {
+            console.log('\n=================================');
+            console.log('Starting Reconciliation');
+            console.log('=================================\n');
+
+            const containers = this.clusterState.getAllContainers();
+            const services = clusterConfig.services;
+
+            console.log(`Total Discovered Containers: ${containers.length}`);
+            console.log(`Configured Services: ${services.length}\n`);
+
+            for (const service of services) {
+                console.log('----------------------------------------');
+                console.log(`Checking Service: ${service.name}`);
+                console.log('----------------------------------------');
+
+                const serviceContainers = containers.filter(
+                    container => container.labels?.service === service.name && container.state === 'running'
+                );
+
+                const actualReplicas = serviceContainers.length;
+                const desiredReplicas = service.replicas;
+                const difference = desiredReplicas - actualReplicas;
+
+                console.log(`Image              : ${service.image}`);
+                console.log(`Desired Replicas   : ${desiredReplicas}`);
+                console.log(`Actual Replicas    : ${actualReplicas}`);
+                console.log(`Difference         : ${difference}`);
+                console.log('');
+
+                if (serviceContainers.length > 0) {
+                    console.log('Existing Replicas:\n');
+                    serviceContainers.forEach((container, index) => {
+                        console.log(`Replica #${index + 1}`);
+                        console.log(`   Name   : ${container.name}`);
+                        console.log(`   ID     : ${container.id.substring(0, 12)}`);
+                        console.log(`   State  : ${container.state}`);
+                        console.log(`   Status : ${container.status}`);
+                        console.log('');
+                    });
+                } else {
+                    console.log('No running replicas found.\n');
+                }
+
+                if (actualReplicas === desiredReplicas) {
+                    console.log('Decision: Cluster is healthy.\n');
+                } else if (actualReplicas < desiredReplicas) {
+                    const replicasToCreate = desiredReplicas - actualReplicas;
+                    console.log(`Decision: Need to create ${replicasToCreate} replica(s).`);
+                    await this.scaleUp(service);
+                } else {
+                    const replicasToRemove = actualReplicas - desiredReplicas;
+                    console.log(`Decision: Need to remove ${replicasToRemove} replica(s).`);
+                    await this.scaleDown(service, replicasToRemove);
+                }
+
+                const exitedContainers = containers.filter(
+                    container => container.labels?.service === service.name && container.state === 'exited'
+                );
+
+                if (exitedContainers.length > 0) {
+                    for (const container of exitedContainers) {
+                        console.log(`Removing dead container: ${container.name}`);
+                        await this.dockerService.removeContainer(container.id);
+                    }
+                }
+            }
+
+            console.log('=================================');
+            console.log('Reconciliation Complete');
+            console.log('=================================\n');
+
+        } finally {
+            this.reconciling = false;
+        }
     }
 
     async scaleUp(service) {
