@@ -91,6 +91,20 @@ class Orchestrator {
         console.log('\n=================================\n');
     }
 
+    async checkHealth(container, service) {
+        const url = `http://localhost:${container.hostPort}${service.healthCheck.path}`;
+
+        try {
+            const response = await fetch(url, {
+                signal: AbortSignal.timeout(service.healthCheck.timeout)
+            });
+
+            return response.ok;
+        } catch (error) {
+            return false;
+        }
+    }
+
     async reconcile() {
         if (this.reconciling) {
             console.log('Reconciliation already in progress, skipping...');
@@ -115,9 +129,21 @@ class Orchestrator {
                 console.log(`Checking Service: ${service.name}`);
                 console.log('----------------------------------------');
 
-                const serviceContainers = containers.filter(
+                const runningContainers = containers.filter(
                     container => container.labels?.service === service.name && container.state === 'running'
                 );
+
+                const serviceContainers = [];
+
+                for (const container of runningContainers) {
+                    const healthy = await this.checkHealth(container, service);
+
+                    if (healthy) {
+                        serviceContainers.push(container);
+                    } else {
+                        console.log(`Health check failed: ${container.name}`);
+                    }
+                }
 
                 const actualReplicas = serviceContainers.length;
                 const desiredReplicas = service.replicas;
