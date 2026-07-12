@@ -26,6 +26,31 @@ class Orchestrator {
         }
     }
 
+    watchEvents() {
+        console.log('Watching Docker events...');
+
+        this.dockerService.getEvents((err, stream) => {
+            if (err) {
+                console.error('Failed to get Docker events:', err.message);
+                return;
+            }
+
+            stream.on('data', (chunk) => {
+                const event = JSON.parse(chunk.toString());
+
+                if (event.Type !== 'container') return;
+
+                if (!['die', 'stop'].includes(event.Action)) return;
+
+                if (event.Actor.Attributes.managedBy !== 'helix') return;
+
+                console.log(`Event: container ${event.Action} -> ${event.Actor.Attributes.name}`);
+
+                this.syncClusterState().then(() => this.reconcile());
+            });
+        });
+    }
+
     async syncClusterState() {
         const containers = await this.dockerService.listContainers();
         this.updateClusterState(containers);
@@ -151,7 +176,7 @@ class Orchestrator {
     async scaleDown(service, replicasToRemove) {
         console.log('\nScaling Down');
         console.log('--------------------------');
-        console.log(`Service          : ${service.name}`);
+        console.log(`Service            : ${service.name}`);
         console.log(`Replicas to Remove : ${replicasToRemove}`);
 
         const containers = this.clusterState.getAllContainers().filter(

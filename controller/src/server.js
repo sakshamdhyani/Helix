@@ -14,6 +14,8 @@ async function bootstrap() {
 
         await orchestrator.connect();
 
+        orchestrator.watchEvents();
+
         orchestrator.run();
 
         console.log('\n=================================');
@@ -21,11 +23,11 @@ async function bootstrap() {
         console.log('=================================\n');
 
         app.listen(PORT, () => {
-            console.log(`🌐 API Server running on http://localhost:${PORT}`);
+            console.log(`API Server running on http://localhost:${PORT}`);
         });
 
     } catch (error) {
-        console.error('\nHelix failed to start');
+        console.error('Helix failed to start');
         console.error(error.message);
         process.exit(1);
     }
