@@ -116,7 +116,8 @@ class Orchestrator {
                 await this.scaleUp(service);
             } else {
                 const replicasToRemove = actualReplicas - desiredReplicas;
-                console.log(`Decision: Need to remove ${replicasToRemove} replica(s).\n`);
+                console.log(`Decision: Need to remove ${replicasToRemove} replica(s).`);
+                await this.scaleDown(service, replicasToRemove);
             }
 
             const exitedContainers = containers.filter(
@@ -145,6 +146,26 @@ class Orchestrator {
         const container = await this.dockerService.createContainer(options);
 
         console.log('Created container:', container.id);
+    }
+
+    async scaleDown(service, replicasToRemove) {
+        console.log('\nScaling Down');
+        console.log('--------------------------');
+        console.log(`Service          : ${service.name}`);
+        console.log(`Replicas to Remove : ${replicasToRemove}`);
+
+        const containers = this.clusterState.getAllContainers().filter(
+            container => container.labels?.service === service.name && container.state === 'running'
+        );
+
+        containers.sort((a, b) => b.createdAt - a.createdAt);
+
+        const toRemove = containers.slice(0, replicasToRemove);
+
+        for (const container of toRemove) {
+            console.log(`Removing container: ${container.name}`);
+            await this.dockerService.removeContainer(container.id);
+        }
     }
 
     buildContainerOptions(service) {
