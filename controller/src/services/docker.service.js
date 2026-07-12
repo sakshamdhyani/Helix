@@ -13,7 +13,8 @@ class DockerService {
             state: container.State,
             status: container.Status,
             labels: container.Labels,
-            createdAt: container.Created
+            createdAt: container.Created,
+            hostPort: container.Ports[0]?.PublicPort
         };
     }
 

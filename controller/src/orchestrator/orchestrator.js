@@ -85,6 +85,7 @@ class Orchestrator {
             console.log(`Image  : ${container.image}`);
             console.log(`State  : ${container.state}`);
             console.log(`Status : ${container.status}`);
+            console.log(`Port   : ${container.hostPort}`);
         });
 
         console.log('\n=================================\n');
@@ -207,10 +208,24 @@ class Orchestrator {
     }
 
     buildContainerOptions(service) {
+        const name = this.generateContainerName(service);
+        const replicaNumber = parseInt(name.split('-').pop());
+        const hostPort = (service.port + replicaNumber).toString();
+
         return {
             Image: service.image,
             Labels: service.container.labels,
-            name: this.generateContainerName(service)
+            name: name,
+            ExposedPorts: {
+                [`${service.port}/tcp`]: {}
+            },
+            HostConfig: {
+                PortBindings: {
+                    [`${service.port}/tcp`]: [
+                        { HostPort: hostPort }
+                    ]
+                }
+            }
         };
     }
 

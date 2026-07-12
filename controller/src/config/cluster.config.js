@@ -3,7 +3,7 @@ module.exports = {
         {
             name: "app-server",
             image: "app-server",
-            replicas: 2,
+            replicas: 3,
             port: 8000,
             healthCheck: {
                 path: "/health",
