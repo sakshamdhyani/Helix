@@ -46,28 +46,9 @@ router.post("/create-config", async (req, res) => {
             },
         };
 
-        // Assuming you maintain a single config document
-        let config = await ServiceConfig.findOne();
 
-        if (!config) {
-            config = await ServiceConfig.create({
-                services: [service],
-            });
-        } else {
-            const exists = config.services.find(
-                (s) => s.name === name
-            );
+        config = await ServiceConfig.create(service);
 
-            if (exists) {
-                return res.status(409).json({
-                    success: false,
-                    message: "Service already exists.",
-                });
-            }
-
-            config.services.push(service);
-            await config.save();
-        }
 
         return res.status(201).json({
             success: true,

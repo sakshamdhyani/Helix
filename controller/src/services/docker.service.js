@@ -33,12 +33,8 @@ class DockerService {
     async listContainers() {
         try {
             const containers = await this.docker.listContainers({
-                all: true,
-                filters: {
-                    label: ['managedBy=helix']
-                }
+                all: true
             });
-
             return containers.map(container => this.mapContainer(container));
         } catch (error) {
             throw new Error(`Failed to list containers: ${error.message}`);

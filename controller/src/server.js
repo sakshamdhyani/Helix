@@ -23,11 +23,11 @@ async function bootstrap() {
 
         await connectDB()
 
-        // await orchestrator.connect();
+        await orchestrator.connect();
 
-        // orchestrator.watchEvents();
+        orchestrator.watchEvents();
 
-        // orchestrator.run();
+        orchestrator.run();
 
         console.log('\n=================================');
         console.log('Helix initialized successfully');

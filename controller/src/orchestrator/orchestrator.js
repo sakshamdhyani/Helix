@@ -1,6 +1,7 @@
 const DockerService = require('../services/docker.service');
 const ClusterState = require('./cluster-state');
 const clusterConfig = require('../config/cluster.config');
+const Service = require("../models/service");
 
 class Orchestrator {
     constructor() {
@@ -119,7 +120,7 @@ class Orchestrator {
             console.log('=================================\n');
 
             const containers = this.clusterState.getAllContainers();
-            const services = clusterConfig.services;
+            const services = await this.fetchClusterServiceConfig();
 
             console.log(`Total Discovered Containers: ${containers.length}`);
             console.log(`Configured Services: ${services.length}\n`);
@@ -202,6 +203,19 @@ class Orchestrator {
         }
     }
 
+    async fetchClusterServiceConfig () {
+
+        try{
+            
+            const services = await Service.find();
+            return services;
+
+        }catch(err){
+            console.log("ERROR WHILE FETCHING CLUSTER SERVICE CONFIG : ", err);
+        }
+
+    }
+
     async scaleUp(service) {
         console.log('\nScaling Up');
         console.log('--------------------------');
@@ -237,10 +251,11 @@ class Orchestrator {
         const name = this.generateContainerName(service);
         const replicaNumber = parseInt(name.split('-').pop());
         const hostPort = (service.port + replicaNumber).toString();
+        const container = Object.fromEntries(service.container);
 
         return {
             Image: service.image,
-            Labels: service.container.labels,
+            Labels: container.labels,
             name: name,
             ExposedPorts: {
                 [`${service.port}/tcp`]: {}
